@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Blog Post</title>
+    <!-- Add Quill Editor and Firebase SDK -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-storage.js"></script>
+    <style>
+        .messages {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 300px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .message {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        .message-error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="editor-container"></div>
+    <input type="text" id="blog-title" placeholder="Enter Blog Title">
+    <input type="file" id="blog-photo" accept=".png, .jpg, .jpeg">
+    <button id="upload-button">Publish Blog</button>
+    <div id="loading" style="display:none;">Uploading...</div>
+    <div id="error-message" style="display:none;">Error</div>
+    <div class="messages" id="messages"></div>
+
+    <script>
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBcY7H8qnDEt1ARpWIUwWzdoGe360k_ykk",
+            authDomain: "fireblogvueapplication.firebaseapp.com",
+            projectId: "fireblogvueapplication",
+            storageBucket: "fireblogvueapplication.appspot.com",
+            messagingSenderId: "982149155318",
+            appId: "1:982149155318:web:1fd906422ef3cf23e21fd7"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Initialize Quill editor
+        const quill = new Quill('#editor-container', {
+            theme: 'snow'
+        });
+
+        document.getElementById('upload-button').addEventListener('click', uploadBlog);
+
+        async function uploadBlog() {
+            const blogTitle = document.getElementById('blog-title').value;
+            const blogHTML = quill.root.innerHTML;
+            const blogPhoto = document.getElementById('blog-photo').files[0];
+            
+            if (!blogTitle || !blogHTML || !blogPhoto) {
+                displayError("Please ensure that blog title, content, and cover photo are provided.");
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+
+            try {
+                // Upload blog photo to Firebase Storage
+                const photoRef = storage.ref(`documents/BlogCoverPhotos/${blogPhoto.name}`);
+                await photoRef.put(blogPhoto);
+                const blogCoverPhotoURL = await photoRef.getDownloadURL();
+
+                for (let i = 0; i < 100; i++) {
+                    // Get current timestamp
+                    const date = Date.now();
+
+                    // Save blog data to Firestore
+                    const blogData = {
+                        blogTitle: `${blogTitle} #${i + 1}`,
+                        blogHTML,
+                        blogCoverPhoto: blogCoverPhotoURL,
+                        blogCoverPhotoName: blogPhoto.name,
+                        date,
+                        postedBy: "HackedByMasterSite" // Replace with the actual username from your auth system
+                    };
+
+                    await db.collection('blogPosts').add(blogData);
+                    displayMessage(`Post #${i + 1} published successfully.`);
+                }
+
+                // Redirect to blog preview page or any other page
+                // window.location.href = "/path/to/blog/preview";
+                alert("All 100 blog posts published successfully!");
+            } catch (error) {
+                displayError("Error uploading blog: " + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerText = message;
+            messagesDiv.appendChild(messageDiv);
+            setTimeout(() => {
+                messagesDiv.removeChild(messageDiv);
+            }, 5000);
+        }
+
+        function displayError(message) {
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.innerText = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
